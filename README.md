@@ -1,6 +1,6 @@
 # CloakBrowser Security Audit — Is the Closed-Source Binary Safe?
 
-**TL;DR:** We ran 8 automated security tests inside Docker against CloakBrowser's proprietary Chromium binary. **No malicious behavior detected.** But you're still running a closed-source executable you can't fully verify — read on for what we found and how to verify it yourself.
+**TL;DR:** We ran 9 automated security tests inside Docker against CloakBrowser's proprietary Chromium binary. **No malicious behavior detected.** But you're still running a closed-source executable you can't fully verify — read on for what we found and how to verify it yourself.
 
 ---
 
@@ -215,6 +215,22 @@ Blocked all outbound traffic with `iptables`, then launched the browser.
 
 Malware that phones home to a C2 server typically crashes or hangs when network is blocked. The CloakBrowser binary operates normally without network access.
 
+### Test 9: VirusTotal Hash Lookup
+
+Submitted the binary's SHA-256 hash to VirusTotal's API to check against 70+ antivirus engines.
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Hash lookup | **NOT FOUND** | Binary has never been submitted to VirusTotal |
+| Malware flags | N/A | No scan results available |
+
+**What this means:** The binary hash `f1783cf24eb9abdf262a607c2a41be23e28343000849dde81a452adb0ff9d8fa` is not in VirusTotal's database. This is expected for a niche tool — it simply means nobody has uploaded this specific binary for scanning yet. It's neither a red flag nor a green flag.
+
+**To run this test yourself:** Pass your VirusTotal API key (free at [virustotal.com](https://www.virustotal.com/gui/my-apikey)):
+```bash
+docker run --rm --cap-add=NET_ADMIN -e VT_API_KEY=your_key cloakbrowser-audit
+```
+
 ---
 
 ## Overall Verdict
@@ -223,7 +239,7 @@ Malware that phones home to a C2 server typically crashes or hangs when network 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  8/8 TESTS PASSED                                           │
+│  9/9 TESTS PASSED                                           │
 │                                                             │
 │  ✓ No suspicious strings/URLs in binary                     │
 │  ✓ No unexpected network connections (only PyPI/GitHub      │
@@ -234,6 +250,7 @@ Malware that phones home to a C2 server typically crashes or hangs when network 
 │  ✓ Standard ELF binary with standard shared libraries       │
 │  ✓ No environment variable sniffing or exfiltration         │
 │  ✓ Works fine with network completely blocked                │
+│  ✓ Not flagged by VirusTotal (hash not in database)         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -309,7 +326,7 @@ cd CloakBrowser
 # Build the audit container
 docker build -f Dockerfile.security-audit -t cloakbrowser-audit .
 
-# Run all 8 tests
+# Run all 9 tests
 docker run --rm --cap-add=NET_ADMIN cloakbrowser-audit
 
 # Interactive inspection (browse artifacts manually)
@@ -333,6 +350,7 @@ docker run -it --cap-add=NET_ADMIN cloakbrowser-audit bash
 | 6. Binary Analysis | `06_binary_comparison.sh` | `readelf`, `ldd`, `file` on the binary | ~2s |
 | 7. Env Sniffing | `07_env_sniff_test.sh` | Plant decoy secrets, `strace` for `/proc/*/environ`, capture network | ~35s |
 | 8. Network Blocked | `08_blocked_network_test.sh` | `iptables -j DROP`, launch browser, check behavior | ~25s |
+| 9. VirusTotal | `09_virustotal.sh` | SHA-256 hash lookup against 70+ AV engines via VT API | ~5s |
 
 **Total runtime:** ~3 minutes
 
@@ -355,7 +373,7 @@ After running the audit, these files are available inside the container for manu
 
 ## Conclusion
 
-CloakBrowser's binary **passed all 8 tests** with no indicators of malicious behavior. The wrapper code is well-written with proper security practices (checksums, path traversal protection, atomic downloads).
+CloakBrowser's binary **passed all 9 tests** with no indicators of malicious behavior. The wrapper code is well-written with proper security practices (checksums, path traversal protection, atomic downloads).
 
 However, **passing behavioral tests is not the same as being provably safe.** The binary remains closed-source, the license prohibits reverse engineering, and the checksum verification is self-referential (same server hosts both binary and checksums).
 

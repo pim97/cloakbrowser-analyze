@@ -513,7 +513,97 @@ iptables -F 2>/dev/null || true
 echo ""
 SCRIPT
 
-# 9. Main runner
+# 9. VirusTotal hash lookup
+RUN cat > /audit/09_virustotal.sh << 'SCRIPT'
+#!/bin/bash
+set -e
+echo "================================================================"
+echo "  TEST 9: VirusTotal Hash Lookup"
+echo "================================================================"
+echo ""
+
+BINARY=$(python3 -c "from cloakbrowser.config import get_binary_path, get_effective_version; print(get_binary_path(get_effective_version()))")
+HASH=$(sha256sum "$BINARY" | cut -d' ' -f1)
+
+echo "Binary SHA-256: $HASH"
+echo ""
+
+# Check if VT API key is provided
+if [ -z "$VT_API_KEY" ]; then
+    echo "No VirusTotal API key provided."
+    echo ""
+    echo "To enable this test, run with:"
+    echo "  docker run --rm --cap-add=NET_ADMIN -e VT_API_KEY=your_key cloakbrowser-audit"
+    echo ""
+    echo "You can get a free API key at: https://www.virustotal.com/gui/my-apikey"
+    echo ""
+    echo "Manual check — paste this hash into VirusTotal:"
+    echo "  https://www.virustotal.com/gui/file/$HASH"
+    echo ""
+    echo "SKIPPED: No API key"
+else
+    echo "Querying VirusTotal API..."
+    echo ""
+
+    RESPONSE=$(curl -s --max-time 30 \
+        -H "x-apikey: $VT_API_KEY" \
+        "https://www.virustotal.com/api/v3/files/$HASH" 2>/dev/null)
+
+    # Check if file is known to VT
+    if echo "$RESPONSE" | grep -qi '"not.found"'; then
+        echo "File NOT in VirusTotal database (never submitted)."
+        echo ""
+        echo "This means nobody has uploaded this binary to VT before."
+        echo "You can upload it manually at: https://www.virustotal.com/gui/home/upload"
+        echo ""
+        echo "RESULT: NOT FOUND (not necessarily bad — just never scanned)"
+    elif echo "$RESPONSE" | grep -q '"malicious"'; then
+        MALICIOUS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data']['attributes']['last_analysis_stats']['malicious'])" 2>/dev/null || echo "?")
+        UNDETECTED=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data']['attributes']['last_analysis_stats']['undetected'])" 2>/dev/null || echo "?")
+        TOTAL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); s=d['data']['attributes']['last_analysis_stats']; print(sum(s.values()))" 2>/dev/null || echo "?")
+        HARMLESS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data']['attributes']['last_analysis_stats']['harmless'])" 2>/dev/null || echo "?")
+        SUSPICIOUS=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data']['attributes']['last_analysis_stats']['suspicious'])" 2>/dev/null || echo "?")
+
+        echo "--- VirusTotal Results ---"
+        echo "  Malicious:   $MALICIOUS / $TOTAL engines"
+        echo "  Suspicious:  $SUSPICIOUS / $TOTAL engines"
+        echo "  Harmless:    $HARMLESS / $TOTAL engines"
+        echo "  Undetected:  $UNDETECTED / $TOTAL engines"
+        echo ""
+
+        if [ "$MALICIOUS" != "?" ] && [ "$MALICIOUS" -gt 0 ] 2>/dev/null; then
+            echo "--- Engines that flagged it ---"
+            echo "$RESPONSE" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+results = d['data']['attributes']['last_analysis_results']
+for engine, result in sorted(results.items()):
+    if result['category'] in ('malicious', 'suspicious'):
+        print(f\"  {engine}: {result['result']} ({result['category']})\")
+" 2>/dev/null || echo "  (could not parse engine details)"
+            echo ""
+
+            if [ "$MALICIOUS" -le 3 ] 2>/dev/null; then
+                echo "WARNING: Low detection count ($MALICIOUS engines) — likely false positives"
+                echo "Common for patched/modified Chromium builds"
+            else
+                echo "CRITICAL: $MALICIOUS engines flagged this binary as malicious!"
+                echo "Review the detections carefully before using this binary."
+            fi
+        else
+            echo "PASS: 0 engines flagged this binary as malicious"
+        fi
+    else
+        echo "Unexpected API response. Raw output:"
+        echo "$RESPONSE" | head -20
+    fi
+    echo ""
+    echo "Full report: https://www.virustotal.com/gui/file/$HASH"
+fi
+echo ""
+SCRIPT
+
+# 10. Main runner
 RUN cat > /audit/run_all.sh << 'SCRIPT'
 #!/bin/bash
 set -e
