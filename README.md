@@ -2,6 +2,8 @@
 
 **TL;DR:** We ran 9 automated security tests inside Docker against CloakBrowser's proprietary Chromium binary. **No malicious behavior detected.** But you're still running a closed-source executable you can't fully verify — read on for what we found and how to verify it yourself.
 
+> **Disclaimer:** This audit is provided strictly for educational and informational purposes. The author(s) of this repository are **not affiliated with CloakBrowser or CloakHQ** in any way. This is an independent, third-party analysis. **No guarantee of safety or security is provided.** The results reflect a point-in-time behavioral observation — they do not constitute a certification, endorsement, or warranty that the software is safe to use. **You run any third-party binary entirely at your own risk.** The author(s) accept no responsibility or liability for any damage, data loss, security breach, or other consequences resulting from using CloakBrowser or any other software mentioned in this repository. Always perform your own due diligence before running closed-source executables.
+
 ---
 
 ## Why This Audit Exists
@@ -384,3 +386,9 @@ However, **passing behavioral tests is not the same as being provably safe.** Th
 ---
 
 *Audit conducted March 2026. Results are specific to binary version `145.0.7632.159.7` (SHA-256: `f1783cf...`). Future versions may differ.*
+
+---
+
+## Disclaimer
+
+THIS REPOSITORY IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. THE AUTHOR(S) ARE NOT RESPONSIBLE FOR ANY CONSEQUENCES ARISING FROM THE USE OF THIS INFORMATION OR THE SOFTWARE ANALYZED HEREIN. THIS IS NOT A SECURITY CERTIFICATION. BEHAVIORAL TESTS CANNOT PROVE THE ABSENCE OF MALICIOUS CODE — ONLY SOURCE CODE REVIEW CAN. THE AUTHOR(S) ARE NOT AFFILIATED WITH, ENDORSED BY, OR CONNECTED TO CLOAKBROWSER, CLOAKHQ, OR ANY OF THEIR CONTRIBUTORS. USE AT YOUR OWN RISK.
