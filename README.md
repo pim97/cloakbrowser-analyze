@@ -316,8 +316,8 @@ export CLOAKBROWSER_BINARY_PATH=/path/to/your/chromium
 
 ```bash
 # Clone this repo
-git clone https://github.com/YOUR_USERNAME/cloakbrowser-security-audit.git
-cd cloakbrowser-security-audit
+git clone https://github.com/pim97/cloakbrowser-analyze.git
+cd cloakbrowser-analyze
 
 # Clone CloakBrowser into audit directory
 git clone https://github.com/CloakHQ/CloakBrowser.git
